@@ -158,6 +158,8 @@ class VideoCourse extends HTMLElement {
     const scripts = [
       'https://vjs.zencdn.net/8.6.1/video.min.js',
       'https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.0.2/dist/videojs-http-streaming.min.js',
+      'https://cdn.jsdelivr.net/npm/videojs-contrib-quality-levels@3.0.0/dist/videojs-contrib-quality-levels.min.js',
+      'https://cdn.jsdelivr.net/npm/videojs-hls-quality-selector@2.0.0/dist/videojs-hls-quality-selector.min.js',
     ];
 
     let loaded = 0;
@@ -203,7 +205,15 @@ class VideoCourse extends HTMLElement {
       playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2]
     });
 
+    // Initialize quality selector plugin
+    if (typeof this._player.hlsQualitySelector === 'function') {
+      this._player.hlsQualitySelector({
+        displayCurrentQuality: true
+      });
+    }
+
     this._player.ready(() => {
+      // Watermark code remains unchanged
       // Replace the dynamic watermark code with this
       if (this._watermarkText) {
         const watermarkDiv = document.createElement('div');
