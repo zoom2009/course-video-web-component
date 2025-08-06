@@ -17,8 +17,6 @@ class VideoCourse extends HTMLElement {
     scripts: [
       'https://vjs.zencdn.net/8.6.1/video.min.js',
       'https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.0.2/dist/videojs-http-streaming.min.js',
-      'https://cdn.jsdelivr.net/npm/videojs-contrib-quality-levels@3.0.0/dist/videojs-contrib-quality-levels.min.js',
-      'https://cdn.jsdelivr.net/npm/videojs-hls-quality-selector@2.0.0/dist/videojs-hls-quality-selector.min.js',
     ],
     playerOptions: {
       html5: {
@@ -267,23 +265,10 @@ class VideoCourse extends HTMLElement {
     // Create player with default options
     this._player = videojs(playerElement, VideoCourse.defaultConfig.playerOptions);
 
-    // Initialize quality selector plugin if available
-    this._initializeQualitySelector();
-
     // Set up player when ready
     this._player.ready(() => {
       this._setupWatermark();
-      this._setupEventListeners();
     });
-  }
-  
-  // Initialize quality selector plugin
-  _initializeQualitySelector() {
-    if (typeof this._player.hlsQualitySelector === 'function') {
-      this._player.hlsQualitySelector({
-        displayCurrentQuality: true
-      });
-    }
   }
   
   // Set up watermark if text is provided
@@ -329,22 +314,6 @@ class VideoCourse extends HTMLElement {
     );
   }
   
-  // Set up event listeners for the player
-  _setupEventListeners() {
-    // Add event listeners
-    this._player.on('play', () => {
-      this.dispatchEvent(new CustomEvent('videoplay', { bubbles: true, composed: true }));
-    });
-    
-    this._player.on('pause', () => {
-      this.dispatchEvent(new CustomEvent('videopause', { bubbles: true, composed: true }));
-    });
-    
-    this._player.on('ended', () => {
-      this.dispatchEvent(new CustomEvent('videoended', { bubbles: true, composed: true }));
-    });
-  }
-  
   // Handle window resize
   _handleResize() {
     if (this._player) {
@@ -369,26 +338,6 @@ class VideoCourse extends HTMLElement {
   }
   
   /**
-   * Reset the video (seek to beginning and pause)
-   */
-  reset() {
-    if (this._player) {
-      this._player.currentTime(0);
-      this._player.pause();
-    }
-  }
-  
-  /**
-   * Set the volume level
-   * @param {number} level - Volume level between 0 and 1
-   */
-  setVolume(level) {
-    if (this._player && typeof level === 'number' && level >= 0 && level <= 1) {
-      this._player.volume(level);
-    }
-  }
-  
-  /**
    * Seek to a specific time in the video
    * @param {number} timeInSeconds - Time to seek to in seconds
    */
@@ -396,66 +345,6 @@ class VideoCourse extends HTMLElement {
     if (this._player && typeof timeInSeconds === 'number' && timeInSeconds >= 0) {
       this._player.currentTime(timeInSeconds);
     }
-  }
-  
-  /**
-   * Set the video quality
-   * @param {string|number} quality - Quality level ('auto' or resolution height like 360, 720, etc.)
-   */
-  setQuality(quality) {
-    if (!this._player || !this._player.qualityLevels) return;
-    
-    const qualityLevels = this._player.qualityLevels();
-    
-    // If quality is 'auto', enable all quality levels
-    if (quality === 'auto') {
-      for (let i = 0; i < qualityLevels.length; i++) {
-        qualityLevels[i].enabled = true;
-      }
-      return;
-    }
-    
-    // Otherwise, enable only the specified quality level
-    const targetHeight = parseInt(quality);
-    for (let i = 0; i < qualityLevels.length; i++) {
-      const height = parseInt(qualityLevels[i].height);
-      qualityLevels[i].enabled = (height === targetHeight);
-    }
-  }
-  
-  /**
-   * Get the current quality setting
-   * @return {string} Current quality ('auto' or resolution)
-   */
-  getQuality() {
-    if (this._player && this._player.hlsQualitySelector) {
-      return this._player.hlsQualitySelector.getCurrentQuality();
-    }
-    return 'auto';
-  }
-  
-  /**
-   * Get the current time of the video
-   * @return {number} Current time in seconds
-   */
-  getCurrentTime() {
-    return this._player ? this._player.currentTime() : 0;
-  }
-  
-  /**
-   * Get the duration of the video
-   * @return {number} Duration in seconds
-   */
-  getDuration() {
-    return this._player ? this._player.duration() : 0;
-  }
-  
-  /**
-   * Check if the video is currently playing
-   * @return {boolean} True if playing, false otherwise
-   */
-  isPlaying() {
-    return this._player ? !this._player.paused() : false;
   }
 }
 
