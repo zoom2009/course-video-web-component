@@ -9,10 +9,10 @@
  */
 
 // Wrap the entire component in an IIFE to prevent global namespace pollution
-(function() {
+(function () {
   // Only define the class if it hasn't been defined yet
   if (window.VideoCourse) return;
-  
+
   class VideoCourse extends HTMLElement {
     // Default configuration that can be overridden
     static defaultConfig = {
@@ -38,18 +38,18 @@
       },
       watermarkStyle: 'position: absolute; top: 10px; right: 10px; color: rgba(255, 255, 255, 0.7); background-color: rgba(0, 0, 0, 0.3); font-size: 1rem; z-index: 9999; padding: 4px 8px; border-radius: 4px; font-weight: bold;'
     };
-  
+
     constructor() {
       super();
       this.attachShadow({ mode: 'open' });
-      
+
       // Initialize properties
       this._initProperties();
-      
+
       // Bind methods to maintain correct 'this' context
       this._bindMethods();
     }
-    
+
     // Initialize all properties with default values
     _initProperties() {
       this._playerId = '';
@@ -62,27 +62,27 @@
       this._watermarkInterval = null;
       this._scriptsLoaded = false;
     }
-    
+
     // Bind methods to maintain correct 'this' context
     _bindMethods() {
       this._handleResize = this._handleResize.bind(this);
     }
-    
+
     // Define observed attributes for property changes
     static get observedAttributes() {
       return ['playerid', 'url', 'poster', 'maxwidth', 'maxheight', 'dynamicwatermark'];
     }
-    
+
     // Lifecycle: when component is added to DOM
     connectedCallback() {
       this._loadAttributes();
       this._render();
       this._loadScripts();
-      
+
       // Add resize listener
       window.addEventListener('resize', this._handleResize);
     }
-    
+
     // Load attributes from HTML element
     _loadAttributes() {
       this._playerId = this.getAttribute('playerid') || this.getAttribute('playerId') || VideoCourse.defaultConfig.playerId;
@@ -92,35 +92,35 @@
       this._maxHeight = this.getAttribute('maxheight') || this.getAttribute('maxHeight') || VideoCourse.defaultConfig.maxHeight;
       this._watermarkText = this.getAttribute('dynamicwatermark') || this.getAttribute('dynamicWatermark') || '';
     }
-    
+
     // Lifecycle: when component is removed from DOM
     disconnectedCallback() {
       this._cleanup();
     }
-    
+
     // Clean up resources
     _cleanup() {
       window.removeEventListener('resize', this._handleResize);
-      
+
       // Clear watermark interval if it exists
       if (this._watermarkInterval) {
         clearInterval(this._watermarkInterval);
         this._watermarkInterval = null;
       }
-      
+
       // Clean up video.js player if it exists
       if (this._player && typeof this._player.dispose === 'function') {
         this._player.dispose();
         this._player = null;
       }
     }
-    
+
     // Handle attribute changes
     attributeChangedCallback(name, oldValue, newValue) {
       if (oldValue === newValue) return;
-      
+
       this._updateAttribute(name, newValue);
-      
+
       // Re-render if component is already connected
       if (this.isConnected) {
         this._render();
@@ -131,10 +131,10 @@
         }
       }
     }
-    
+
     // Update attribute value
     _updateAttribute(name, value) {
-      switch(name) {
+      switch (name) {
         case 'playerid':
           this._playerId = value || VideoCourse.defaultConfig.playerId;
           break;
@@ -155,12 +155,12 @@
           break;
       }
     }
-    
+
     // Render the component template
     _render() {
       this.shadowRoot.innerHTML = this._getTemplate();
     }
-    
+
     // Get the component template
     _getTemplate() {
       return `
@@ -203,6 +203,9 @@
             margin-top: -30px !important;
             margin-left: -30px !important;
           }
+          .vjs-poster img {
+            object-fit: cover;
+          }
         </style>
         <div class="video-container">
           <video-js
@@ -222,17 +225,17 @@
         </div>
       `;
     }
-    
+
     // Load required scripts
     _loadScripts() {
       if (this._scriptsLoaded) {
         this._initializePlayer();
         return;
       }
-    
+
       const scripts = VideoCourse.defaultConfig.scripts;
       let loaded = 0;
-      
+
       scripts.forEach(src => {
         // Check if script is already loaded
         if (document.querySelector(`script[src="${src}"]`)) {
@@ -243,7 +246,7 @@
           }
           return;
         }
-        
+
         const script = document.createElement('script');
         script.src = src;
         script.onload = () => {
@@ -256,7 +259,7 @@
         document.head.appendChild(script);
       });
     }
-  
+
     // Initialize video.js player
     _initializePlayer() {
       // Wait for videojs to be available
@@ -264,34 +267,34 @@
         setTimeout(() => this._initializePlayer(), 100);
         return;
       }
-      
+
       const playerElement = this.shadowRoot.querySelector(`#${this._playerId}`);
       if (!playerElement) return;
-      
+
       // Create player with default options
       this._player = videojs(playerElement, VideoCourse.defaultConfig.playerOptions);
-    
+
       // Set up player when ready
       this._player.ready(() => {
         this._setupWatermark();
       });
     }
-    
+
     // Set up watermark if text is provided
     _setupWatermark() {
       if (!this._watermarkText) return;
-    
+
       const watermarkDiv = document.createElement('div');
       watermarkDiv.textContent = this._watermarkText;
       watermarkDiv.style.cssText = VideoCourse.defaultConfig.watermarkStyle;
-    
+
       // Add the watermark to the player
       this._player.el().appendChild(watermarkDiv);
-    
+
       // Set up random positioning
       this._setupWatermarkPositioning(watermarkDiv);
     }
-    
+
     // Set up random positioning for watermark
     _setupWatermarkPositioning(watermarkDiv) {
       // Function to move watermark to random position
@@ -299,50 +302,50 @@
         const playerRect = this._player.el().getBoundingClientRect();
         const maxX = playerRect.width - watermarkDiv.offsetWidth;
         const maxY = playerRect.height - watermarkDiv.offsetHeight;
-        
+
         // Generate random positions (with some padding from edges)
         const randomX = Math.max(10, Math.floor(Math.random() * maxX));
         const randomY = Math.max(10, Math.floor(Math.random() * maxY));
-        
+
         // Apply new position
         watermarkDiv.style.top = `${randomY}px`;
         watermarkDiv.style.right = 'auto';
         watermarkDiv.style.left = `${randomX}px`;
       };
-      
+
       // Move watermark initially
       moveWatermark();
-      
+
       // Set interval to move watermark every 4 seconds
       this._watermarkInterval = setInterval(
-        moveWatermark, 
+        moveWatermark,
         VideoCourse.defaultConfig.watermarkInterval
       );
     }
-    
+
     // Handle window resize
     _handleResize() {
       if (this._player) {
         this._player.fluid(true);
       }
     }
-    
+
     // PUBLIC API METHODS
-    
+
     /**
      * Play the video
      */
     play() {
       if (this._player) this._player.play();
     }
-    
+
     /**
      * Pause the video
      */
     pause() {
       if (this._player) this._player.pause();
     }
-    
+
     /**
      * Seek to a specific time in the video
      * @param {number} timeInSeconds - Time to seek to in seconds
@@ -356,7 +359,7 @@
 
   // Store the class in the window object for potential reuse
   window.VideoCourse = VideoCourse;
-  
+
   // Register the custom element only if it hasn't been registered yet
   if (!customElements.get('video-course')) {
     customElements.define('video-course', VideoCourse);
