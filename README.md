@@ -1,3 +1,182 @@
+# How to resize
+
+## ตัวอย่าง url video => https://moonlit-cassowary-25.convex.site/video-course?name=44-Changing%20Bill/master.m3u8
+
+# คู่มือการแปลงไฟล์วิดีโอเป็น HLS (.m3u8) หลายความละเอียดด้วย FFmpeg
+
+## คำอธิบาย
+
+เอกสารนี้จะอธิบายขั้นตอนการแปลงไฟล์วิดีโอ MP4 ให้กลายเป็นไฟล์ HLS (.m3u8) ที่รองรับการสตรีมแบบ Adaptive Bitrate Streaming หลายความละเอียด (480p, 720p, 1080p, 1440p)
+
+---
+
+## ขั้นตอนการทำงาน
+
+### 1. เตรียมไฟล์วิดีโอต้นฉบับ
+
+ตั้งชื่อไฟล์วิดีโอของคุณว่า
+
+```
+input.mp4
+```
+
+---
+
+### 2. ย่อวิดีโอให้เป็นไฟล์ขนาดเล็ก (Optional)
+
+ลดขนาดวิดีโอให้เล็กลงก่อน เพื่อให้ encode เร็วขึ้น และลดการใช้ทรัพยากรเครื่อง
+
+```bash
+ffmpeg -i input.mp4 -c:v libx264 -preset veryfast -r 60 -vf "scale=2560:-1" -c:a copy reduce.mp4
+```
+
+* ลดความละเอียดวิดีโอให้กว้าง 2560px (ความสูงจะปรับอัตโนมัติตามอัตราส่วนเดิม)
+* บีบอัดวิดีโอด้วย libx264
+* รักษาเสียงเดิม (copy audio)
+
+---
+
+### 3. แปลงไฟล์วิดีโอเป็น HLS (.m3u8) รองรับ 4 ความละเอียด
+
+ใช้คำสั่งนี้เพื่อสร้างไฟล์ HLS พร้อม master playlist และ sub-playlist แยกตามความละเอียด
+
+Window ต้อง save เป็นไฟล์ .bat แล้วกดเข้าใจงาน
+```bash
+ffmpeg -i reduce.mp4 ^
+-filter_complex "[0:v]split=4[v480][v720][v1080][v1440]; [v480]scale=w=854:h=480[v480out]; [v720]scale=w=1280:h=720[v720out]; [v1080]scale=w=1920:h=1080[v1080out]; [v1440]scale=w=2560:h=1440[v1440out]" ^
+-map "[v480out]" -c:v:0 libx264 -b:v:0 1400k -preset veryfast -g 48 -sc_threshold 0 ^
+-map "[v720out]" -c:v:1 libx264 -b:v:1 2800k -preset veryfast -g 48 -sc_threshold 0 ^
+-map "[v1080out]" -c:v:2 libx264 -b:v:2 5000k -preset veryfast -g 48 -sc_threshold 0 ^
+-map "[v1440out]" -c:v:3 libx264 -b:v:3 8000k -preset veryfast -g 48 -sc_threshold 0 ^
+-map a:0 -c:a:0 aac -b:a:0 128k ^
+-map a:0 -c:a:1 aac -b:a:1 128k ^
+-map a:0 -c:a:2 aac -b:a:2 128k ^
+-map a:0 -c:a:3 aac -b:a:3 128k ^
+-f hls -hls_time 6 -hls_playlist_type vod ^
+-hls_segment_filename "v%%v/file_%%03d.ts" ^
+-master_pl_name master.m3u8 ^
+-var_stream_map "v:0,a:0 v:1,a:1 v:2,a:2 v:3,a:3" ^
+v%%v/prog.m3u8
+
+```
+
+Mac
+```bash
+ffmpeg -i reduce.mp4 \
+-filter_complex "[0:v]split=4[v480][v720][v1080][v1440]; \
+  [v480]scale=w=854:h=480[v480out]; \
+  [v720]scale=w=1280:h=720[v720out]; \
+  [v1080]scale=w=1920:h=1080[v1080out]; \
+  [v1440]scale=w=2560:h=1440[v1440out]" \
+-map "[v480out]" -c:v:0 libx264 -b:v:0 1400k -preset veryfast -g 48 -sc_threshold 0 \
+-map "[v720out]" -c:v:1 libx264 -b:v:1 2800k -preset veryfast -g 48 -sc_threshold 0 \
+-map "[v1080out]" -c:v:2 libx264 -b:v:2 5000k -preset veryfast -g 48 -sc_threshold 0 \
+-map "[v1440out]" -c:v:3 libx264 -b:v:3 8000k -preset veryfast -g 48 -sc_threshold 0 \
+-map a:0 -c:a:0 aac -b:a:0 128k \
+-map a:0 -c:a:1 aac -b:a:1 128k \
+-map a:0 -c:a:2 aac -b:a:2 128k \
+-map a:0 -c:a:3 aac -b:a:3 128k \
+-f hls \
+-hls_time 6 \
+-hls_playlist_type vod \
+-hls_segment_filename "v%v/file_%03d.ts" \
+-master_pl_name master.m3u8 \
+-var_stream_map "v:0,a:0 v:1,a:1 v:2,a:2 v:3,a:3" \
+v%v/prog.m3u8
+
+```
+
+### อธิบายรายละเอียด:
+
+| ความละเอียด | ขนาด (px) | Bitrate ประมาณ (k) |
+| ----------- | --------- | ------------------ |
+| 480p        | 854x480   | 1400k              |
+| 720p        | 1280x720  | 2800k              |
+| 1080p       | 1920x1080 | 5000k              |
+| 1440p       | 2560x1440 | 8000k              |
+
+---
+
+### 4. โครงสร้างไฟล์ที่ได้จะเป็นแบบนี้:
+
+```
+master.m3u8
+v0/
+  prog.m3u8
+  file_000.ts
+  file_001.ts
+  ...
+v1/
+  prog.m3u8
+  file_000.ts
+  ...
+v2/
+  prog.m3u8
+  file_000.ts
+  ...
+v3/
+  prog.m3u8
+  file_000.ts
+  ...
+v4/
+  prog.m3u8
+  file_000.ts
+  ...
+```
+
+---
+
+## 5. ตัวอย่าง HTML เล่นไฟล์ HLS ด้วย HLS.js
+
+นำไปวางในไฟล์ `.html` แล้วเปิดผ่าน browser ได้เลย (ใช้ master.m3u8 เป็น source)
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>HLS.js Player</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+  <video id="video" controls width="640" height="360"></video>
+
+  <script>
+    const video = document.getElementById('video');
+    const videoSrc = 'master.m3u8'; // เปลี่ยนเป็น path ของ master.m3u8 ที่คุณวางไว้
+
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(videoSrc);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, function() {
+        video.play();
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = videoSrc;
+      video.addEventListener('loadedmetadata', function() {
+        video.play();
+      });
+    }
+  </script>
+</body>
+</html>
+```
+
+---
+
+## หมายเหตุเพิ่มเติม:
+
+* ไฟล์ .m3u8 และ .ts ต้องวางใน server ที่รองรับ HTTP Requests (เช่น Apache, Nginx, CDN) ไม่สามารถเปิดจากไฟล์ local ได้
+* หากต้องการใช้บน production แนะนำให้ใช้ CDN เพื่อโหลดไฟล์ .ts ให้เร็วขึ้น
+* หากวิดีโอมีความยาวมาก ให้ปรับ `-hls_time 6` เป็น 2-4 วินาที จะทำให้สลับ bitrate ไหลลื่นขึ้นเวลาสัญญาณอ่อน
+
+---
+
+ต้องการให้ผมทำ **Shell Script Auto Run แบบ copy paste ใช้งานได้เลยไหมครับ?** (จะพิมพ์แค่ชื่อไฟล์ แล้ว script จะ gen ให้ครบเลย) ?
+
+------------------------
+
 # Video-Course Web Component
 
 A reusable web component for video playback with HLS (HTTP Live Streaming) support. This custom element provides a responsive video player with quality selection, dynamic watermarking, and a simple API for controlling playback.
