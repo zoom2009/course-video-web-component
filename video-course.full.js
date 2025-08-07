@@ -23,6 +23,7 @@
       scripts: [
         'https://vjs.zencdn.net/8.6.1/video.min.js',
         'https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.0.2/dist/videojs-http-streaming.min.js',
+        'https://cdn.jsdelivr.net/npm/videojs-quality-selector-hls@1.1.1/dist/videojs-quality-selector-hls.min.js',
       ],
       playerOptions: {
         html5: {
@@ -275,6 +276,10 @@
       this._player = videojs(playerElement, VideoCourse.defaultConfig.playerOptions);
 
       // Set up player when ready
+      this._player.qualitySelectorHls({
+        displayCurrentQuality: true,
+        vjsIconClass: 'vjs-icon-hd'
+      })
       this._player.ready(() => {
         this._setupWatermark();
       });
