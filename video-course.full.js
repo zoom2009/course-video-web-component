@@ -10,6 +10,8 @@
 
 // Wrap the entire component in an IIFE to prevent global namespace pollution
 
+console.log('-------- v7 ---------')
+
 class VideoCourse extends HTMLElement {
   // Default configuration that can be overridden
   static defaultConfig = {
@@ -369,7 +371,8 @@ class VideoCourse extends HTMLElement {
 
   callCounterAPI() {
     const names = this._url.split("/")
-    const name = decodeURIComponent(names[names.length - 2])
+    const name = decodeURIComponent(names[names.length - 2]).replace('video-course?name=', '')
+    console.log('call name:', name)
     const httpUrl = `https://moonlit-cassowary-25.convex.site/increment-vdo-count?name=${name}`
     fetch(httpUrl).then(() => {
       console.log('success counter')
