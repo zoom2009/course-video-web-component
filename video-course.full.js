@@ -59,6 +59,7 @@ class VideoCourse extends HTMLElement {
     this._player = null;
     this._watermarkInterval = null;
     this._scriptsLoaded = false;
+    this._hasPlayedOnce = false; // Track first play state
   }
 
   // Bind methods to maintain correct 'this' context
@@ -279,6 +280,14 @@ class VideoCourse extends HTMLElement {
     })
     this._player.ready(() => {
       this._setupWatermark();
+      
+      // Add first play event listener
+      this._player.on('play', () => {
+        if (!this._hasPlayedOnce) {
+          this._hasPlayedOnce = true;
+          this._onFirstPlay();
+        }
+      });
     });
   }
 
@@ -356,6 +365,38 @@ class VideoCourse extends HTMLElement {
     if (this._player && typeof timeInSeconds === 'number' && timeInSeconds >= 0) {
       this._player.currentTime(timeInSeconds);
     }
+  }
+
+  callCounterAPI() {
+    const names = this._url.split("/")
+    const name = decodeURIComponent(names[names.length - 2])
+    const httpUrl = `https://moonlit-cassowary-25.convex.site/increment-vdo-count?name=${name}`
+    fetch(httpUrl).then(() => {
+      console.log('success counter')
+    }).catch((error) => {
+      console.log('error counter:', error)
+    })
+  }
+
+  // Handle first time play event
+  _onFirstPlay() {
+    this.callCounterAPI()
+    console.log('Video played for the first time!');
+    
+    // Dispatch custom event for external listeners
+    this.dispatchEvent(new CustomEvent('firstplay', {
+      detail: {
+        player: this._player,
+        currentTime: this._player.currentTime()
+      }
+    }));
+    
+    // Add your custom logic here
+    // Examples:
+    // - Track analytics
+    // - Show welcome message
+    // - Initialize additional features
+    // - Log user engagement
   }
 }
 
