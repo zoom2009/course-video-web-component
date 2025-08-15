@@ -1,19 +1,6 @@
-/**
- * VideoCourse - A reusable web component for video playback with HLS support
- * Features:
- * - HLS streaming with quality selection
- * - Dynamic watermark with random positioning
- * - Responsive design
- * - Custom events for video state changes
- * - Public API for controlling playback
- */
-
-// Wrap the entire component in an IIFE to prevent global namespace pollution
-
-console.log('-------- v7 ---------')
+console.log('-------- v9 (fixed first play + quality selector) ---------');
 
 class VideoCourse extends HTMLElement {
-  // Default configuration that can be overridden
   static defaultConfig = {
     playerId: 'video-player',
     maxWidth: '800px',
@@ -42,15 +29,10 @@ class VideoCourse extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-
-    // Initialize properties
     this._initProperties();
-
-    // Bind methods to maintain correct 'this' context
     this._bindMethods();
   }
 
-  // Initialize all properties with default values
   _initProperties() {
     this._playerId = '';
     this._url = '';
@@ -61,32 +43,26 @@ class VideoCourse extends HTMLElement {
     this._player = null;
     this._watermarkInterval = null;
     this._scriptsLoaded = false;
-    this._hasPlayedOnce = false; // Track first play state
   }
 
-  // Bind methods to maintain correct 'this' context
   _bindMethods() {
     this._handleResize = this._handleResize.bind(this);
   }
 
-  // Define observed attributes for property changes
   static get observedAttributes() {
     return ['playerid', 'url', 'poster', 'maxwidth', 'maxheight', 'dynamicwatermark'];
   }
 
-  // Lifecycle: when component is added to DOM
   connectedCallback() {
     this._loadAttributes();
     this._render();
     this._loadScripts();
-
-    // Add resize listener
     window.addEventListener('resize', this._handleResize);
   }
 
-  // Load attributes from HTML element
   _loadAttributes() {
-    this._playerId = this.getAttribute('playerid') || this.getAttribute('playerId') || VideoCourse.defaultConfig.playerId;
+    const providedId = this.getAttribute('playerid') || this.getAttribute('playerId');
+    this._playerId = providedId || `video-player-${Math.random().toString(36).slice(2, 9)}`;
     this._url = this.getAttribute('url') || '';
     this._poster = this.getAttribute('poster') || '';
     this._maxWidth = this.getAttribute('maxwidth') || this.getAttribute('maxWidth') || VideoCourse.defaultConfig.maxWidth;
@@ -94,38 +70,27 @@ class VideoCourse extends HTMLElement {
     this._watermarkText = this.getAttribute('dynamicwatermark') || this.getAttribute('dynamicWatermark') || '';
   }
 
-  // Lifecycle: when component is removed from DOM
   disconnectedCallback() {
     this._cleanup();
   }
 
-  // Clean up resources
   _cleanup() {
     window.removeEventListener('resize', this._handleResize);
-
-    // Clear watermark interval if it exists
     if (this._watermarkInterval) {
       clearInterval(this._watermarkInterval);
       this._watermarkInterval = null;
     }
-
-    // Clean up video.js player if it exists
     if (this._player && typeof this._player.dispose === 'function') {
       this._player.dispose();
       this._player = null;
     }
   }
 
-  // Handle attribute changes
   attributeChangedCallback(name, oldValue, newValue) {
     if (oldValue === newValue) return;
-
     this._updateAttribute(name, newValue);
-
-    // Re-render if component is already connected
     if (this.isConnected) {
       this._render();
-      // Reinitialize player if it exists
       if (this._player && typeof this._player.dispose === 'function') {
         this._player.dispose();
         this._initializePlayer();
@@ -133,11 +98,10 @@ class VideoCourse extends HTMLElement {
     }
   }
 
-  // Update attribute value
   _updateAttribute(name, value) {
     switch (name) {
       case 'playerid':
-        this._playerId = value || VideoCourse.defaultConfig.playerId;
+        this._playerId = value || `video-player-${Math.random().toString(36).slice(2, 9)}`;
         break;
       case 'url':
         this._url = value || '';
@@ -157,253 +121,130 @@ class VideoCourse extends HTMLElement {
     }
   }
 
-  // Render the component template
   _render() {
     this.shadowRoot.innerHTML = this._getTemplate();
   }
 
-  // Get the component template
   _getTemplate() {
     return `
-        <style>
-          @import url('https://vjs.zencdn.net/8.6.1/video-js.css');
-          
-          :host {
-            display: block;
-            width: 100%;
-          }
-          .video-container {
-            width: 100%;
-            max-width: ${this._maxWidth};
-            max-height: ${this._maxHeight};
-            margin: 0 auto;
-            position: relative;
-          }
-          .video-js {
-            width: 100%;
-            height: 0;
-            padding-top: 56.25%; /* 16:9 Aspect Ratio */
-            position: relative;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-          }
-          .video-js .vjs-tech {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-          }
-          .vjs-big-play-button {
-            background-color: rgba(0, 0, 0, 0.45) !important;
-            border-radius: 50% !important;
-            width: 60px !important;
-            height: 60px !important;
-            line-height: 60px !important;
-            margin-top: -30px !important;
-            margin-left: -30px !important;
-          }
-          .vjs-poster img {
-            object-fit: cover;
-          }
-        </style>
-        <div class="video-container">
-          <video-js
-            id="${this._playerId}"
-            class="video-js vjs-big-play-centered"
-            controls
-            preload="auto"
-            poster="${this._poster}"
-            playsinline
-            data-setup="{}">
-            <source src="${this._url}" type="application/x-mpegURL">
-            <p class="vjs-no-js">
-              To view this video please enable JavaScript, and consider upgrading to a web browser that
-              <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>.
-            </p>
-          </video-js>
-        </div>
-      `;
+      <style>
+        @import url('https://vjs.zencdn.net/8.6.1/video-js.css');
+        :host { display: block; width: 100%; }
+        .video-container { width: 100%; max-width: ${this._maxWidth}; max-height: ${this._maxHeight}; margin: 0 auto; position: relative; }
+        .video-js { width: 100%; height: 0; padding-top: 56.25%; position: relative; border-radius: 8px; overflow: hidden; }
+        .video-js .vjs-tech { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .vjs-big-play-button { background-color: rgba(0, 0, 0, 0.45) !important; border-radius: 50% !important; width: 60px !important; height: 60px !important; }
+      </style>
+      <div class="video-container">
+        <video-js
+          id="${this._playerId}"
+          class="video-js vjs-big-play-centered"
+          controls
+          preload="auto"
+          poster="${this._poster}"
+          playsinline
+          data-setup="{}">
+          <source src="${this._url}" type="application/x-mpegURL">
+        </video-js>
+      </div>
+    `;
   }
 
-  // Load required scripts
   _loadScripts() {
-    if (this._scriptsLoaded) {
-      this._initializePlayer();
-      return;
-    }
-
     const scripts = VideoCourse.defaultConfig.scripts;
     let loaded = 0;
-
-    scripts.forEach(src => {
-      // Check if script is already loaded
-      if (document.querySelector(`script[src="${src}"]`)) {
-        loaded++;
-        if (loaded === scripts.length) {
-          this._scriptsLoaded = true;
-          this._initializePlayer();
-        }
-        return;
+    const onLoad = () => {
+      loaded++;
+      if (loaded === scripts.length) {
+        this._scriptsLoaded = true;
+        this._initializePlayer();
       }
-
+    };
+    scripts.forEach(src => {
+      if (document.querySelector(`script[src="${src}"]`)) return onLoad();
       const script = document.createElement('script');
       script.src = src;
-      script.onload = () => {
-        loaded++;
-        if (loaded === scripts.length) {
-          this._scriptsLoaded = true;
-          this._initializePlayer();
-        }
-      };
+      script.onload = onLoad;
       document.head.appendChild(script);
     });
   }
 
-  // Initialize video.js player
   _initializePlayer() {
-    // Wait for videojs to be available
     if (typeof videojs === 'undefined') {
-      setTimeout(() => this._initializePlayer(), 100);
-      return;
+      return setTimeout(() => this._initializePlayer(), 100);
     }
-
     const playerElement = this.shadowRoot.querySelector(`#${this._playerId}`);
     if (!playerElement) return;
 
-    // Create player with default options
     this._player = videojs(playerElement, VideoCourse.defaultConfig.playerOptions);
 
-    // Set up player when ready
-    this._player.qualitySelectorHls({
-      displayCurrentQuality: true,
-      vjsIconClass: 'vjs-icon-hd'
-    })
+    // ✅ Video quality selector
+    if (typeof this._player.qualitySelectorHls === 'function') {
+      this._player.qualitySelectorHls({
+        displayCurrentQuality: true,
+        vjsIconClass: 'vjs-icon-hd'
+      });
+    }
+
+    // ✅ Attach first play listener immediately
+    this._player.one('play', () => this._onFirstPlay());
+
     this._player.ready(() => {
       this._setupWatermark();
-      
-      // Add first play event listener
-      this._player.on('play', () => {
-        if (!this._hasPlayedOnce) {
-          this._hasPlayedOnce = true;
-          this._onFirstPlay();
-        }
-      });
+      if (!this._player.paused()) {
+        this._onFirstPlay();
+      }
     });
   }
 
-  // Set up watermark if text is provided
   _setupWatermark() {
     if (!this._watermarkText) return;
-
     const watermarkDiv = document.createElement('div');
     watermarkDiv.textContent = this._watermarkText;
     watermarkDiv.style.cssText = VideoCourse.defaultConfig.watermarkStyle;
-
-    // Add the watermark to the player
     this._player.el().appendChild(watermarkDiv);
-
-    // Set up random positioning
     this._setupWatermarkPositioning(watermarkDiv);
   }
 
-  // Set up random positioning for watermark
   _setupWatermarkPositioning(watermarkDiv) {
-    // Function to move watermark to random position
     const moveWatermark = () => {
       const playerRect = this._player.el().getBoundingClientRect();
       const maxX = playerRect.width - watermarkDiv.offsetWidth;
       const maxY = playerRect.height - watermarkDiv.offsetHeight;
-
-      // Generate random positions (with some padding from edges)
       const randomX = Math.max(10, Math.floor(Math.random() * maxX));
       const randomY = Math.max(10, Math.floor(Math.random() * maxY));
-
-      // Apply new position
       watermarkDiv.style.top = `${randomY}px`;
-      watermarkDiv.style.right = 'auto';
       watermarkDiv.style.left = `${randomX}px`;
     };
-
-    // Move watermark initially
     moveWatermark();
-
-    // Set interval to move watermark every 4 seconds
-    this._watermarkInterval = setInterval(
-      moveWatermark,
-      VideoCourse.defaultConfig.watermarkInterval
-    );
+    this._watermarkInterval = setInterval(moveWatermark, VideoCourse.defaultConfig.watermarkInterval);
   }
 
-  // Handle window resize
   _handleResize() {
-    if (this._player) {
-      this._player.fluid(true);
-    }
+    if (this._player) this._player.fluid(true);
   }
 
-  // PUBLIC API METHODS
-
-  /**
-   * Play the video
-   */
-  play() {
-    if (this._player) this._player.play();
-  }
-
-  /**
-   * Pause the video
-   */
-  pause() {
-    if (this._player) this._player.pause();
-  }
-
-  /**
-   * Seek to a specific time in the video
-   * @param {number} timeInSeconds - Time to seek to in seconds
-   */
-  seekTo(timeInSeconds) {
-    if (this._player && typeof timeInSeconds === 'number' && timeInSeconds >= 0) {
-      this._player.currentTime(timeInSeconds);
-    }
-  }
+  play() { if (this._player) this._player.play(); }
+  pause() { if (this._player) this._player.pause(); }
+  seekTo(time) { if (this._player && typeof time === 'number' && time >= 0) this._player.currentTime(time); }
 
   callCounterAPI() {
-    const names = this._url.split("/")
-    const name = decodeURIComponent(names[names.length - 2]).replace('video-course?name=', '')
-    console.log('call name:', name)
-    const httpUrl = `https://moonlit-cassowary-25.convex.site/increment-vdo-count?name=${name}`
-    fetch(httpUrl).then(() => {
-      console.log('success counter')
-    }).catch((error) => {
-      console.log('error counter:', error)
-    })
+    const parts = this._url.split("/");
+    const name = decodeURIComponent(parts[parts.length - 2]).replace('video-course?name=', '');
+    fetch(`https://moonlit-cassowary-25.convex.site/increment-vdo-count?name=${name}`)
+      .then(() => console.log('success counter'))
+      .catch(err => console.log('error counter:', err));
   }
 
-  // Handle first time play event
   _onFirstPlay() {
-    this.callCounterAPI()
+    this.callCounterAPI();
     console.log('Video played for the first time!');
-    
-    // Dispatch custom event for external listeners
     this.dispatchEvent(new CustomEvent('firstplay', {
-      detail: {
-        player: this._player,
-        currentTime: this._player.currentTime()
-      }
+      detail: { player: this._player, currentTime: this._player.currentTime() }
     }));
-    
-    // Add your custom logic here
-    // Examples:
-    // - Track analytics
-    // - Show welcome message
-    // - Initialize additional features
-    // - Log user engagement
   }
 }
 
-// Register the custom element only if it hasn't been registered yet
 if (!customElements.get('video-course')) {
   customElements.define('video-course', VideoCourse);
 }
