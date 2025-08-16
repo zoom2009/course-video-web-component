@@ -1,4 +1,4 @@
-console.log('-------- v9 (fixed first play + quality selector) ---------');
+console.log('-------- v10 ---------');
 
 class VideoCourse extends HTMLElement {
   static defaultConfig = {
@@ -133,7 +133,6 @@ class VideoCourse extends HTMLElement {
         .video-container { width: 100%; max-width: ${this._maxWidth}; max-height: ${this._maxHeight}; margin: 0 auto; position: relative; }
         .video-js { width: 100%; height: 0; padding-top: 56.25%; position: relative; border-radius: 8px; overflow: hidden; }
         .video-js .vjs-tech { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        .vjs-big-play-button { background-color: rgba(0, 0, 0, 0.45) !important; border-radius: 50% !important; width: 60px !important; height: 60px !important; }
       </style>
       <div class="video-container">
         <video-js
